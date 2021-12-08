@@ -70,7 +70,7 @@ void RayTracer_Generated::CastSingleRayMegaCmd(uint32_t tidX, uint32_t tidY, uin
   } pcData;
   
   uint32_t sizeX  = uint32_t(std::abs(int32_t(tidX) - int32_t(0)));
-  uint32_t sizeY  = uint32_t(std::abs(int32_t(tidY) - int32_t()));
+  uint32_t sizeY  = uint32_t(std::abs(int32_t(tidY) - int32_t(0)));
   uint32_t sizeZ  = uint32_t(std::abs(int32_t(1) - int32_t(0)));
 
   pcData.m_sizeX  = tidX;

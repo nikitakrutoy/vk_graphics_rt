@@ -18,15 +18,16 @@ struct CRT_Hit
   uint primId; 
   uint instId;
   uint geomId;    ///< use 4 most significant bits for geometry type; thay are zero for triangles 
+  vec3 bars;
   float    coords[4]; ///< custom intersection data; for triangles coords[0] and coords[1] stores baricentric coords (u,v)
 };
-const uint palette_size = 20;
-const uint m_palette[20] = {
-    0xffe6194b, 0xff3cb44b, 0xffffe119, 0xff0082c8,
-    0xfff58231, 0xff911eb4, 0xff46f0f0, 0xfff032e6,
-    0xffd2f53c, 0xfffabebe, 0xff008080, 0xffe6beff,
-    0xffaa6e28, 0xfffffac8, 0xff800000, 0xffaaffc3,
-    0xff808000, 0xffffd8b1, 0xff000080, 0xff808080
+const uint palette_size = 4;
+const uint m_palette[4] = {
+    0xffe6194b, 0xff3cb44b, 0xffffe119, 0xff0082c8
+    // 0xfff58231, 0xff911eb4, 0xff46f0f0, 0xfff032e6,
+    // 0xffd2f53c, 0xfffabebe, 0xff008080, 0xffe6beff,
+    // 0xffaa6e28, 0xfffffac8, 0xff800000, 0xffaaffc3,
+    // 0xff808000, 0xffffd8b1, 0xff000080, 0xff808080
   };
 
 #include "include/RayTracer_ubo.h"

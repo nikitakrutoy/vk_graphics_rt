@@ -5,6 +5,40 @@
 #include <vk_pipeline.h>
 #include <vk_buffers.h>
 
+
+void fillWriteDescriptorSetEntry(VkDescriptorSet set, VkWriteDescriptorSet& writeDS, 
+  VkDescriptorBufferInfo* bufferInfo, VkBuffer buffer, int binding) {
+
+    bufferInfo->buffer = buffer;
+    bufferInfo->offset = 0;
+    bufferInfo->range  = VK_WHOLE_SIZE;  
+
+    writeDS = VkWriteDescriptorSet{};
+    writeDS.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeDS.dstSet = set;
+    writeDS.dstBinding = binding;
+    writeDS.descriptorCount = 1;
+    writeDS.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    writeDS.pBufferInfo = bufferInfo;
+    writeDS.pImageInfo = nullptr;
+    writeDS.pTexelBufferView = nullptr; 
+}
+
+
+void RayTracer_GPU::InitMaterialDescriptors(std::shared_ptr<SceneManager> sceneManager) {
+  std::array<VkDescriptorBufferInfo, 6> descriptorBufferInfo;
+  std::array<VkWriteDescriptorSet,   6> writeDescriptorSet;
+
+  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[0], &descriptorBufferInfo[0], sceneManager->GetVertexBuffer(), 3);
+  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[1], &descriptorBufferInfo[1], sceneManager->GetIndexBuffer(), 4);
+  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[2], &descriptorBufferInfo[2], sceneManager->GetMaterialIDsBuffer(), 5);
+  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[3], &descriptorBufferInfo[3], sceneManager->GetMaterialsBuffer(), 6);
+  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[4], &descriptorBufferInfo[4], sceneManager->GetInstanceMatBuffer(), 7);
+  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[5], &descriptorBufferInfo[5], sceneManager->GetMeshInfoBuffer(), 8);
+
+  vkUpdateDescriptorSets(device, uint32_t(writeDescriptorSet.size()), writeDescriptorSet.data(), 0, NULL);
+}
+
 SimpleRender::SimpleRender(uint32_t a_width, uint32_t a_height) : m_width(a_width), m_height(a_height)
 {
 #ifdef NDEBUG
@@ -112,7 +146,8 @@ void SimpleRender::InitVulkan(const char** a_instanceExtensions, uint32_t a_inst
 
   LoaderConfig conf = {};
   conf.load_geometry = true;
-  conf.load_materials = MATERIAL_LOAD_MODE::NONE;
+  conf.load_materials = MATERIAL_LOAD_MODE::MATERIALS_ONLY;
+  conf.instance_matrix_as_storage_buffer = true;
   if(ENABLE_HARDWARE_RT)
   {
     conf.build_acc_structs = true;
