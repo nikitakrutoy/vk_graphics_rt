@@ -7,34 +7,64 @@
 
 
 void fillWriteDescriptorSetEntry(VkDescriptorSet set, VkWriteDescriptorSet& writeDS, 
-  VkDescriptorBufferInfo* bufferInfo, VkBuffer buffer, int binding) {
+  VkDescriptorBufferInfo* bufferInfo, VkDescriptorImageInfo* imageInfo, VkBuffer buffer, int binding, int descriptorCount = 1) {
+    if (bufferInfo) {
+      bufferInfo->buffer = buffer;
+      bufferInfo->offset = 0;
+      bufferInfo->range  = VK_WHOLE_SIZE;  
+    }
 
-    bufferInfo->buffer = buffer;
-    bufferInfo->offset = 0;
-    bufferInfo->range  = VK_WHOLE_SIZE;  
 
     writeDS = VkWriteDescriptorSet{};
     writeDS.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     writeDS.dstSet = set;
     writeDS.dstBinding = binding;
-    writeDS.descriptorCount = 1;
-    writeDS.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    writeDS.descriptorCount = descriptorCount;
+
+    if (!imageInfo)
+      writeDS.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    else if (imageInfo->sampler)
+      writeDS.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    else
+      writeDS.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+
     writeDS.pBufferInfo = bufferInfo;
-    writeDS.pImageInfo = nullptr;
+    writeDS.pImageInfo = imageInfo;
     writeDS.pTexelBufferView = nullptr; 
 }
 
 
 void RayTracer_GPU::InitMaterialDescriptors(std::shared_ptr<SceneManager> sceneManager) {
-  std::array<VkDescriptorBufferInfo, 6> descriptorBufferInfo;
-  std::array<VkWriteDescriptorSet,   6> writeDescriptorSet;
+  auto textureViews = sceneManager->GetTextureViews();
 
-  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[0], &descriptorBufferInfo[0], sceneManager->GetVertexBuffer(), 3);
-  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[1], &descriptorBufferInfo[1], sceneManager->GetIndexBuffer(), 4);
-  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[2], &descriptorBufferInfo[2], sceneManager->GetMaterialIDsBuffer(), 5);
-  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[3], &descriptorBufferInfo[3], sceneManager->GetMaterialsBuffer(), 6);
-  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[4], &descriptorBufferInfo[4], sceneManager->GetInstanceMatBuffer(), 7);
-  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[5], &descriptorBufferInfo[5], sceneManager->GetMeshInfoBuffer(), 8);
+  std::vector<VkDescriptorImageInfo>	descriptorImageInfos(textureViews.size());
+
+
+  std::array<VkDescriptorBufferInfo, 6> descriptorBufferInfo;
+  std::vector<VkWriteDescriptorSet> writeDescriptorSet(8);
+
+  for (uint32_t i = 0; i < textureViews.size(); ++i)
+{
+    descriptorImageInfos[i].sampler = nullptr;
+    descriptorImageInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    descriptorImageInfos[i].imageView = textureViews[i];
+}
+
+  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[0], &descriptorBufferInfo[0], nullptr, sceneManager->GetVertexBuffer(), 3);
+  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[1], &descriptorBufferInfo[1], nullptr, sceneManager->GetIndexBuffer(), 4);
+  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[2], &descriptorBufferInfo[2], nullptr, sceneManager->GetMaterialIDsBuffer(), 5);
+  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[3], &descriptorBufferInfo[3], nullptr, sceneManager->GetMaterialsBuffer(), 6);
+  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[4], &descriptorBufferInfo[4], nullptr, sceneManager->GetInstanceMatBuffer(), 7);
+  fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[5], &descriptorBufferInfo[5], nullptr, sceneManager->GetMeshInfoBuffer(), 8);
+
+  if (textureViews.size() > 0) {
+    VkDescriptorImageInfo samplerInfo;
+    samplerInfo.sampler = sceneManager->GetTextureSamplers()[0];
+    fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[6], nullptr, descriptorImageInfos.data(), 0, 9, textureViews.size());
+    fillWriteDescriptorSetEntry(m_allGeneratedDS[0], writeDescriptorSet[7], nullptr, &samplerInfo ,0, 10);
+  }
+  else 
+    writeDescriptorSet.resize(6);
 
   vkUpdateDescriptorSets(device, uint32_t(writeDescriptorSet.size()), writeDescriptorSet.data(), 0, NULL);
 }
@@ -146,7 +176,7 @@ void SimpleRender::InitVulkan(const char** a_instanceExtensions, uint32_t a_inst
 
   LoaderConfig conf = {};
   conf.load_geometry = true;
-  conf.load_materials = MATERIAL_LOAD_MODE::MATERIALS_ONLY;
+  conf.load_materials = MATERIAL_LOAD_MODE::MATERIALS_AND_TEXTURES;
   conf.instance_matrix_as_storage_buffer = true;
   if(ENABLE_HARDWARE_RT)
   {

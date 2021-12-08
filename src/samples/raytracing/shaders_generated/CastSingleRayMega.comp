@@ -1,6 +1,7 @@
 #version 460
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_ray_query : require
+#extension GL_EXT_nonuniform_qualifier : require
 
 #include "common_generated.h"
 
@@ -30,7 +31,7 @@ struct MeshInfo
 
 struct Vertex {
   vec4 vertex;
-  vec4 tangent;
+  vec4 texCoordAndTangent;
 };
 
 layout(binding = 0, set = 0) buffer data0 { uint out_color[]; }; //
@@ -42,6 +43,8 @@ layout(binding = 5, set = 0) buffer MatIds { uint mat_ids[]; };
 layout(binding = 6, set = 0) buffer Materials { MaterialData_pbrMR materials[]; };
 layout(binding = 7, set = 0) buffer InstanceMats { mat4 instance_mats[]; };
 layout(binding = 8, set = 0) buffer MeshInfos { MeshInfo mesh_infos[]; };
+layout(binding = 9, set = 0) uniform texture2D textures[];
+layout(binding = 10, set = 0) uniform sampler samp;
 
 
 
@@ -70,7 +73,7 @@ vec3 DecodeNormal(uint a_data)
   return vec3(x, y, z);
 }
 
-vec4 LIGHT_DIR = vec4(normalize(vec3(0.0f, 0.0f, 1.0f)), 0.0f);
+vec4 LIGHT_DIR = vec4(normalize(vec3(0.5f, 0.0f, 1.0f)), 0.0f);
 
 // RayScene intersection with 'm_pAccelStruct'
 //
@@ -171,7 +174,26 @@ vec4 shade(CRT_Hit hit) {
     return vec4(0.0f);
 
   float shade = max(dot(n, LIGHT_DIR.xyz), 0.0f);
-  return shade * materials[mat_id].baseColor;
+
+  vec4 baseColor;
+  if (materials[mat_id].baseColorTexId >= 0) {
+    uint indexOffset = mesh_infos[hit.geomId].indexOffset;
+    uint vertexOffset = mesh_infos[hit.geomId].vertexOffset;
+
+    const uint i0 = indices[indexOffset + 3 * hit.primId + 0];
+    const uint i1 = indices[indexOffset + 3 * hit.primId + 1];
+    const uint i2 = indices[indexOffset + 3 * hit.primId + 2];
+
+    const vec2 uv0 = vertices[vertexOffset + i0].texCoordAndTangent.xy;
+    const vec2 uv1 = vertices[vertexOffset + i1].texCoordAndTangent.xy;
+    const vec2 uv2 = vertices[vertexOffset + i2].texCoordAndTangent.xy;
+    vec2 uv =  hit.bars.x * uv0 + hit.bars.y * uv1 + hit.bars.z * uv2;
+    baseColor = texture(sampler2D(textures[materials[mat_id].baseColorTexId], samp), uv);
+  }
+  else {
+    baseColor = materials[mat_id].baseColor;
+  }
+  return shade * baseColor;
 }
 
 
@@ -191,7 +213,10 @@ void kernel_RayTrace_out_color(uint tidX, uint tidY, in vec4 rayPosAndNear, in v
   uint mat_id = mat_ids[primOffset + hit.primId];
 
   vec4 color;
-  if (materials[mat_id].metallic > 0.0) {
+
+  if (hit.primId == -1)
+    color = vec4(0.5);
+  else if (materials[mat_id].metallic > 0.0 || materials[mat_id].roughness < 1.0) {
       vec4 p;
       vec3 n;
       getPosNormal(hit, p, n);

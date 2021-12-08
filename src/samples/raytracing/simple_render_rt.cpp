@@ -104,6 +104,7 @@ void SimpleRender::RayTraceGPU()
   if(!m_pRayTracerGPU)
   {
     m_pRayTracerGPU = std::make_unique<RayTracer_GPU>(m_width, m_height);
+    m_pRayTracerGPU->textureCount = m_pScnMgr->GetTextureViews().size();
     m_pRayTracerGPU->InitVulkanObjects(m_device, m_physicalDevice, m_width * m_height);
     m_pRayTracerGPU->InitMemberBuffers();
 

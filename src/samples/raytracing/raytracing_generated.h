@@ -54,6 +54,8 @@ public:
   virtual void copyKernelFloatCmd(uint32_t length);
   
   virtual void CastSingleRayMegaCmd(uint32_t tidX, uint32_t tidY, uint32_t* out_color);
+
+  uint textureCount = 0;
 protected:
   
   VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
