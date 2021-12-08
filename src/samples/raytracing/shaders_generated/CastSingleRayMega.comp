@@ -70,7 +70,7 @@ vec3 DecodeNormal(uint a_data)
   return vec3(x, y, z);
 }
 
-vec4 LIGHT_DIR = vec4(normalize(vec3(0.5, 0.5, 0.5)), 0);
+vec4 LIGHT_DIR = vec4(normalize(vec3(0.0f, 0.0f, 1.0f)), 0.0f);
 
 // RayScene intersection with 'm_pAccelStruct'
 //
@@ -113,6 +113,7 @@ bool m_pAccelStruct_RayQuery_AnyHit(const vec4 rayPos, const vec4 rayDir)
 
 layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
 
+
 layout( push_constant ) uniform kernelArgs
 {
   uint iNumElementsX; 
@@ -120,6 +121,59 @@ layout( push_constant ) uniform kernelArgs
   uint iNumElementsZ; 
   uint tFlagsMask;    
 } kgenArgs;
+
+
+void getPosNormal(CRT_Hit hit, out vec4 p, out vec3 n) {
+  uint indexOffset = mesh_infos[hit.geomId].indexOffset;
+  uint vertexOffset = mesh_infos[hit.geomId].vertexOffset;
+
+  const uint i0 = indices[indexOffset + 3 * hit.primId + 0];
+  const uint i1 = indices[indexOffset + 3 * hit.primId + 1];
+  const uint i2 = indices[indexOffset + 3 * hit.primId + 2];
+
+  const vec4 v0 = vertices[vertexOffset + i0].vertex;
+  const vec4 v1 = vertices[vertexOffset + i1].vertex;
+  const vec4 v2 = vertices[vertexOffset + i2].vertex;
+
+  const vec4 n0 = vec4(DecodeNormal(floatBitsToInt(v0.w)), 0);
+  const vec4 n1 = vec4(DecodeNormal(floatBitsToInt(v1.w)), 0);
+  const vec4 n2 = vec4(DecodeNormal(floatBitsToInt(v2.w)), 0);
+  
+  vec3 p_local = hit.bars.x * v0.xyz + hit.bars.y * v1.xyz + hit.bars.z * v2.xyz;
+  vec3 n_local = hit.bars.x * n0.xyz + hit.bars.y * n1.xyz + hit.bars.z * n2.xyz;
+
+  n = normalize(mat3(transpose(inverse(instance_mats[hit.instId]))) * n_local.xyz);
+  p = instance_mats[hit.instId] * vec4(p_local.xyz, 1.0f);
+}
+
+vec4 shade(CRT_Hit hit) {
+
+  if (hit.primId == -1)
+    return vec4(0.5);
+
+  uint indexOffset = mesh_infos[hit.geomId].indexOffset;
+  uint primOffset = indexOffset / 3;
+
+  uint mat_id = mat_ids[primOffset + hit.primId];
+
+
+  vec4 p;
+  vec3 n;
+  getPosNormal(hit, p, n);
+  vec4 rayPos = p;
+  vec4 rayDir = LIGHT_DIR;
+  rayPos.w = 1.0f;
+  rayDir.w = MAXFLOAT;
+
+  bool occoluded = m_pAccelStruct_RayQuery_AnyHit(rayPos, rayDir);
+
+  if (occoluded) 
+    return vec4(0.0f);
+
+  float shade = max(dot(n, LIGHT_DIR.xyz), 0.0f);
+  return shade * materials[mat_id].baseColor;
+}
+
 
 ///////////////////////////////////////////////////////////////// subkernels here
 void kernel_RayTrace_out_color(uint tidX, uint tidY, in vec4 rayPosAndNear, in vec4 rayDirAndFar, uint out_colorOffset) 
@@ -130,34 +184,28 @@ void kernel_RayTrace_out_color(uint tidX, uint tidY, in vec4 rayPosAndNear, in v
 
   CRT_Hit hit = m_pAccelStruct_RayQuery_NearestHit(rayPos, rayDir);
 
+  uint indexOffset = mesh_infos[hit.geomId].indexOffset;
+  uint vertexOffset = mesh_infos[hit.geomId].vertexOffset;
+  uint primOffset = indexOffset / 3;
+
+  uint mat_id = mat_ids[primOffset + hit.primId];
+
   vec4 color;
-  if (hit.primId == -1) {
-    color = vec4(0.5);
+  if (materials[mat_id].metallic > 0.0) {
+      vec4 p;
+      vec3 n;
+      getPosNormal(hit, p, n);
+      vec4 refRayPos = p;
+      vec4 refRayDir = vec4(reflect(rayDir.xyz, n), 0.0f);
+      refRayPos.w = 1.0f;
+      refRayDir.w = MAXFLOAT;
+      float coef = max(dot(n, LIGHT_DIR.xyz), 0.0f);
+
+      CRT_Hit hit2 = m_pAccelStruct_RayQuery_NearestHit(refRayPos, refRayDir);
+      color = coef * shade(hit2);
   }
   else {
-    uint indexOffset = mesh_infos[hit.geomId].indexOffset;
-    uint vertexOffset = mesh_infos[hit.geomId].vertexOffset;
-    uint primOffset = indexOffset / 3;
-
-    uint mat_id = mat_ids[primOffset + hit.primId];
-
-    const uint i0 = indices[indexOffset + 3 * hit.primId + 0];
-    const uint i1 = indices[indexOffset + 3 * hit.primId + 1];
-    const uint i2 = indices[indexOffset + 3 * hit.primId + 2];
-
-    const vec4 v0 = vertices[vertexOffset + i0].vertex;
-    const vec4 v1 = vertices[vertexOffset + i1].vertex;
-    const vec4 v2 = vertices[vertexOffset + i2].vertex;
-
-    const vec4 n0 = vec4(DecodeNormal(floatBitsToInt(v0.w)), 0);
-    const vec4 n1 = vec4(DecodeNormal(floatBitsToInt(v1.w)), 0);
-    const vec4 n2 = vec4(DecodeNormal(floatBitsToInt(v2.w)), 0);
-
-    vec3 bars = vec3(hit.coords[0], hit.coords[1], hit.coords[2]);
-    vec3 n_local = hit.bars.x * n0.xyz + hit.bars.y * n1.xyz + hit.bars.z * n2.xyz;
-    vec3 n = normalize(mat3(transpose(inverse(instance_mats[hit.instId]))) * n_local.xyz);
-    float shade = max(dot(n, LIGHT_DIR.xyz), 0.0f);
-    color = shade * materials[mat_id].baseColor;
+    color = shade(hit);
   }
 
   out_color[tidY * ubo.m_width + tidX + out_colorOffset] = packColor(color);
