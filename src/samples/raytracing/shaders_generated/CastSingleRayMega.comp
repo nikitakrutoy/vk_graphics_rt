@@ -73,7 +73,8 @@ vec3 DecodeNormal(uint a_data)
   return vec3(x, y, z);
 }
 
-vec4 LIGHT_DIR = vec4(normalize(vec3(0.5f, 0.0f, 1.0f)), 0.0f);
+vec4 LIGHT_DIR = vec4(normalize(vec3(1.0f, 0.0f, 1.0f)), 0.0f);
+vec4 LIGHT_DIR2 = vec4(normalize(vec3(-1.0f, 0.0f, 1.0f)), 0.0f);
 
 // RayScene intersection with 'm_pAccelStruct'
 //
@@ -245,7 +246,7 @@ vec3 cooktorrance_specular(in float NdL, in float NdV, in float NdH, in vec3 spe
     return (1.0 / rim) * specular * G * D;
 }
 
-vec4 shade_pbr(CRT_Hit hit) {
+vec4 shade_pbr(CRT_Hit hit, vec4 light) {
   uint indexOffset = mesh_infos[hit.geomId].indexOffset;
   uint vertexOffset = mesh_infos[hit.geomId].vertexOffset;
   uint primOffset = indexOffset / 3;
@@ -254,14 +255,14 @@ vec4 shade_pbr(CRT_Hit hit) {
   MaterialData_pbrMR mat = materials[mat_id];
 
   if (hit.primId == -1)
-    return vec4(0.5);
+    return vec4(0.0);
 
   vec4 p;
   vec3 n;
   getPosNormal(hit, p, n);
 
   vec4 rayPos = p;
-  vec4 rayDir = LIGHT_DIR;
+  vec4 rayDir = light;
   rayPos.w = 1.0f;
   rayDir.w = MAXFLOAT;
 
@@ -270,33 +271,44 @@ vec4 shade_pbr(CRT_Hit hit) {
   if (occoluded) 
     return vec4(0.0f);
 
+  const uint i0 = indices[indexOffset + 3 * hit.primId + 0];
+  const uint i1 = indices[indexOffset + 3 * hit.primId + 1];
+  const uint i2 = indices[indexOffset + 3 * hit.primId + 2];
+
+  const vec2 uv0 = vertices[vertexOffset + i0].texCoordAndTangent.xy;
+  const vec2 uv1 = vertices[vertexOffset + i1].texCoordAndTangent.xy;
+  const vec2 uv2 = vertices[vertexOffset + i2].texCoordAndTangent.xy;
+
+  vec2 uv =  hit.bars.x * uv0 + hit.bars.y * uv1 + hit.bars.z * uv2;
+
   // base
   vec4 base;
   if (mat.baseColorTexId >= 0) {
-    uint indexOffset = mesh_infos[hit.geomId].indexOffset;
-    uint vertexOffset = mesh_infos[hit.geomId].vertexOffset;
-
-    const uint i0 = indices[indexOffset + 3 * hit.primId + 0];
-    const uint i1 = indices[indexOffset + 3 * hit.primId + 1];
-    const uint i2 = indices[indexOffset + 3 * hit.primId + 2];
-
-    const vec2 uv0 = vertices[vertexOffset + i0].texCoordAndTangent.xy;
-    const vec2 uv1 = vertices[vertexOffset + i1].texCoordAndTangent.xy;
-    const vec2 uv2 = vertices[vertexOffset + i2].texCoordAndTangent.xy;
-    vec2 uv =  hit.bars.x * uv0 + hit.bars.y * uv1 + hit.bars.z * uv2;
     base = texture(sampler2D(textures[mat.baseColorTexId], samp), uv);
   }
   else {
     base = mat.baseColor;
   }
 
-  // specular
-  float roughness = 0.5;
-  float metallic = mat.metallic;
+  float metallic;
+  if (mat.metallicRoughnessTexId >= 0) {
+    metallic = texture(sampler2D(textures[mat.metallicRoughnessTexId], samp), uv).b;
+  }
+  else {
+    metallic = mat.metallic;
+  }
+  
+  float roughness;
+  if (mat.metallicRoughnessTexId >= 0) {
+    roughness = texture(sampler2D(textures[mat.metallicRoughnessTexId], samp), uv).g;
+  }
+  else {
+    roughness = mat.roughness;
+  }
 
   vec3 V =  -normalize(p.xyz - ubo.m_camPos.xyz);
   vec3 N = n;
-  vec3 L = normalize(LIGHT_DIR.xyz);
+  vec3 L = normalize(light.xyz);
   vec3 H = normalize(L + V);
 
   float NdL = max(0.0, dot(N, L));
@@ -305,7 +317,7 @@ vec4 shade_pbr(CRT_Hit hit) {
   float HdV = max(0.001, dot(H, V));
 
   vec3 specular = mix(vec3(0.04), base.xyz, metallic);
-  vec3 specfresnel = fresnel_factor(specular, HdV);
+  vec3 specfresnel = clamp(fresnel_factor(specular, HdV), 0.0, 1.0);
   vec3 specref = cooktorrance_specular(NdL, NdV, NdH, specfresnel, roughness);
   specref *= vec3(NdL);
 
@@ -336,6 +348,7 @@ void kernel_RayTrace_out_color(uint tidX, uint tidY, in vec4 rayPosAndNear, in v
   vec3 n;
   uint mat_id;
   MaterialData_pbrMR mat;
+  float metallic = 1.0f;
   vec4 color = vec4(0.0f);
   bool cast_ray = true;
 
@@ -344,7 +357,12 @@ void kernel_RayTrace_out_color(uint tidX, uint tidY, in vec4 rayPosAndNear, in v
   do 
   {
     hit = m_pAccelStruct_RayQuery_NearestHit(rayPos, rayDir); 
-    color += clamp(shade_pbr(hit), 0.0f, 1.0f);
+    if (hit.primId != -1) {
+      color += metallic * clamp(shade_pbr(hit, LIGHT_DIR), 0.0f, 1.0f);
+      color += metallic * clamp(shade_pbr(hit, LIGHT_DIR2), 0.0f, 1.0f);
+    }
+    else if (hops == 0)
+      color = vec4(0.5);
 
     hops += 1;
 
@@ -360,75 +378,26 @@ void kernel_RayTrace_out_color(uint tidX, uint tidY, in vec4 rayPosAndNear, in v
     rayPos.w = 0.1f;
     rayDir.w = MAXFLOAT;
 
-    cast_ray = mat.metallic > 0.0 && hops < HOPS;
-  } while (cast_ray);
+    if (mat.metallicRoughnessTexId >= 0) {
+      const uint i0 = indices[indexOffset + 3 * hit.primId + 0];
+      const uint i1 = indices[indexOffset + 3 * hit.primId + 1];
+      const uint i2 = indices[indexOffset + 3 * hit.primId + 2];
 
+      const vec2 uv0 = vertices[vertexOffset + i0].texCoordAndTangent.xy;
+      const vec2 uv1 = vertices[vertexOffset + i1].texCoordAndTangent.xy;
+      const vec2 uv2 = vertices[vertexOffset + i2].texCoordAndTangent.xy;
 
-  out_color[tidY * ubo.m_width + tidX + out_colorOffset] = packColor(color / hops);
+      vec2 uv =  hit.bars.x * uv0 + hit.bars.y * uv1 + hit.bars.z * uv2;
 
-  // if (hit.primId == -1)
-  //   color = vec4(0.5);
-  // else if (materials[mat_id].metallic > 0.0 || materials[mat_id].roughness < 1.0) {
-  //     vec4 p;
-  //     vec3 n;
-  //     getPosNormal(hit, p, n);
-  //     vec4 refRayPos = p;
-  //     vec4 refRayDir = vec4(reflect(rayDir.xyz, n), 0.0f);
-  //     refRayPos.w = 0.1f;
-  //     refRayDir.w = MAXFLOAT;
-  //     float coef = max(dot(n, LIGHT_DIR.xyz), 0.0f);
+      metallic = texture(sampler2D(textures[mat.metallicRoughnessTexId], samp), uv).b;
+    }
+    else {
+      metallic = mat.metallic;
+    }
 
-  //     float roughness = 0.5;
-  //     float metallic = materials[mat_id].metallic;
-  //     vec3 base =  materials[mat_id].baseColor.xyz;
-  //     // vec3 base = vec3(1.0);
+  } while (metallic > 0.0 && hops < HOPS && hit.primId != -1);
 
-  //     vec3 L = normalize(refRayDir.xyz);
-  //     vec3 V =  -normalize(rayDir.xyz);
-  //     vec3 N = n;
-  //     vec3 H = normalize(L + V);
-
-  //     float NdL = max(0.0, dot(N, L));
-  //     float NdV = max(0.001, dot(N, V));
-  //     float NdH = max(0.001, dot(N, H));
-  //     float HdV = max(0.001, dot(H, V));
-
-  //     vec3 specular = mix(vec3(0.04), base, metallic);
-  //     vec3 specfresnel = fresnel_factor(specular, HdV);
-  //     vec3 specref = cooktorrance_specular(NdL, NdV, NdH, specfresnel, roughness);
-  //     specref *= vec3(NdL);
-
-  //     L = normalize(LIGHT_DIR.xyz);
-  //     H = normalize(L + V);
-  //     NdL = max(0.0, dot(N, L));
-  //     NdH = max(0.001, dot(N, H));
-
-  //     vec3 specfresnel2 = fresnel_factor(specular, HdV);
-  //     vec3 specref2 = cooktorrance_specular(NdL, NdV, NdH, specfresnel2, roughness);
-  //     specref2 *= vec3(NdL);
-  //     // color = clamp(vec4(specref, 1.0f), 0.0, 1.0);
-      
-
-  //     // vec3 F0 = vec3(0.04); 
-  //     // F0 = mix(F0, materials[mat_id].baseColor.xyz, materials[mat_id].metallic);
-  //     // float roughness = 0.0f;
-  //     // vec3 F = fresnelSchlickRoughness(max(dot(n, -rayDir.xyz), 0.0), F0, roughness);
-
-
-  //     CRT_Hit hit2 = m_pAccelStruct_RayQuery_NearestHit(refRayPos, refRayDir);
-  //     vec4 color1 = clamp(vec4(specref, 1.0f), vec4(0.0), vec4(base, 1.0)) * shade(hit2);
-  //     vec4 color2 = clamp(vec4(specref2, 1.0f), 0.0, 1.0);
-  //     // color = mix(color1, color2, color2);
-  //     color = 0.5 * color1 + 0.5 * color2;
-      
-  //     // color = 0.5 * clamp(vec4(specref, 1.0f), 0.0, 1.0) * shade(hit2) + 0.5 * clamp(vec4(specref2, 1.0f), 0.0, 1.0);
-  //     // color = shade(hit2) * cookTorrance(p.xyz, n.xyz, normalize(refRayDir.xyz), -normalize(rayDir.xyz));
-  // }
-  // else {
-  //   color = shade(hit);
-  // }
-
-  // out_color[tidY * ubo.m_width + tidX + out_colorOffset] = packColor(color);
+  out_color[tidY * ubo.m_width + tidX + out_colorOffset] = packColor(clamp(color, 0.0, 1.0));
 }
 
 void kernel_InitEyeRay(uint tidX, uint tidY, inout vec4 rayPosAndNear, inout vec4 rayDirAndFar) 
