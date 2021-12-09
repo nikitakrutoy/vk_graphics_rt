@@ -10,7 +10,9 @@
             "nodes" : [
                 0,
                 1,
-                2
+                2,
+                3,
+                4
             ]
         }
     ],
@@ -44,6 +46,26 @@
                 0,
                 0.7071067094802856
             ]
+        },
+        {
+            "mesh" : 3,
+            "name" : "Hat",
+            "rotation" : [
+                0.7071068286895752,
+                0,
+                0,
+                0.7071067094802856
+            ]
+        },
+        {
+            "mesh" : 4,
+            "name" : "Saber",
+            "rotation" : [
+                0.7071068286895752,
+                0,
+                0,
+                0.7071067094802856
+            ]
         }
     ],
     "materials" : [
@@ -51,12 +73,9 @@
             "doubleSided" : true,
             "name" : "Material",
             "pbrMetallicRoughness" : {
-                "baseColorFactor" : [
-                    0.800000011920929,
-                    0.800000011920929,
-                    0.800000011920929,
-                    1
-                ],
+                "baseColorTexture" : {
+                    "index" : 0
+                },
                 "metallicFactor" : 0
             }
         },
@@ -64,7 +83,13 @@
             "doubleSided" : true,
             "name" : "Droid:initialShadingGroup",
             "pbrMetallicRoughness" : {
-                "roughnessFactor" : 0
+                "baseColorFactor" : [
+                    1,
+                    0.24543745815753937,
+                    0.2717599868774414,
+                    1
+                ],
+                "roughnessFactor" : 0.17006802558898926
             }
         },
         {
@@ -72,8 +97,34 @@
             "name" : "Material.001",
             "pbrMetallicRoughness" : {
                 "baseColorTexture" : {
-                    "index" : 0
+                    "index" : 1
                 },
+                "metallicFactor" : 0
+            }
+        },
+        {
+            "doubleSided" : true,
+            "name" : "Material.003",
+            "pbrMetallicRoughness" : {
+                "baseColorFactor" : [
+                    0.05438810586929321,
+                    0.6272526383399963,
+                    0.8000000715255737,
+                    1
+                ],
+                "metallicFactor" : 0
+            }
+        },
+        {
+            "doubleSided" : true,
+            "name" : "Material.004",
+            "pbrMetallicRoughness" : {
+                "baseColorFactor" : [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929,
+                    1
+                ],
                 "metallicFactor" : 0
             }
         }
@@ -120,15 +171,61 @@
                     "material" : 2
                 }
             ]
+        },
+        {
+            "name" : "Droid.003",
+            "primitives" : [
+                {
+                    "attributes" : {
+                        "POSITION" : 12,
+                        "NORMAL" : 13,
+                        "TEXCOORD_0" : 14
+                    },
+                    "indices" : 15,
+                    "material" : 0
+                }
+            ]
+        },
+        {
+            "name" : "Droid.004",
+            "primitives" : [
+                {
+                    "attributes" : {
+                        "POSITION" : 16,
+                        "NORMAL" : 17,
+                        "TEXCOORD_0" : 18
+                    },
+                    "indices" : 19,
+                    "material" : 3
+                },
+                {
+                    "attributes" : {
+                        "POSITION" : 20,
+                        "NORMAL" : 21,
+                        "TEXCOORD_0" : 22
+                    },
+                    "indices" : 23,
+                    "material" : 4
+                }
+            ]
         }
     ],
     "textures" : [
         {
             "sampler" : 0,
             "source" : 0
+        },
+        {
+            "sampler" : 0,
+            "source" : 1
         }
     ],
     "images" : [
+        {
+            "mimeType" : "image/png",
+            "name" : "rustediron2_basecolor",
+            "uri" : "Droid_textures/rustediron2_basecolor.png"
+        },
         {
             "mimeType" : "image/jpeg",
             "name" : "rust_completely_rusted_0072_01",
@@ -139,10 +236,10 @@
         {
             "bufferView" : 0,
             "componentType" : 5126,
-            "count" : 37272,
+            "count" : 33048,
             "max" : [
                 17.512182235717773,
-                124.0108413696289,
+                113.87808227539062,
                 39.13320541381836
             ],
             "min" : [
@@ -155,19 +252,19 @@
         {
             "bufferView" : 1,
             "componentType" : 5126,
-            "count" : 37272,
+            "count" : 33048,
             "type" : "VEC3"
         },
         {
             "bufferView" : 2,
             "componentType" : 5126,
-            "count" : 37272,
+            "count" : 33048,
             "type" : "VEC2"
         },
         {
             "bufferView" : 3,
             "componentType" : 5123,
-            "count" : 134454,
+            "count" : 122988,
             "type" : "SCALAR"
         },
         {
@@ -237,68 +334,230 @@
             "componentType" : 5123,
             "count" : 5502,
             "type" : "SCALAR"
+        },
+        {
+            "bufferView" : 12,
+            "componentType" : 5126,
+            "count" : 617,
+            "max" : [
+                15.11550235748291,
+                100.81602478027344,
+                26.271778106689453
+            ],
+            "min" : [
+                -15.115508079528809,
+                80.81147766113281,
+                2.476557970046997
+            ],
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 13,
+            "componentType" : 5126,
+            "count" : 617,
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 14,
+            "componentType" : 5126,
+            "count" : 617,
+            "type" : "VEC2"
+        },
+        {
+            "bufferView" : 15,
+            "componentType" : 5123,
+            "count" : 2286,
+            "type" : "SCALAR"
+        },
+        {
+            "bufferView" : 16,
+            "componentType" : 5126,
+            "count" : 146,
+            "max" : [
+                -11.269379615783691,
+                124.0108413696289,
+                35.265380859375
+            ],
+            "min" : [
+                -12.887133598327637,
+                70.49427795410156,
+                32.602378845214844
+            ],
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 17,
+            "componentType" : 5126,
+            "count" : 146,
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 18,
+            "componentType" : 5126,
+            "count" : 146,
+            "type" : "VEC2"
+        },
+        {
+            "bufferView" : 19,
+            "componentType" : 5123,
+            "count" : 600,
+            "type" : "SCALAR"
+        },
+        {
+            "bufferView" : 20,
+            "componentType" : 5126,
+            "count" : 2215,
+            "max" : [
+                -10.885623931884766,
+                70.72996520996094,
+                34.60734939575195
+            ],
+            "min" : [
+                -13.270890235900879,
+                57.324859619140625,
+                31.96139907836914
+            ],
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 21,
+            "componentType" : 5126,
+            "count" : 2215,
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 22,
+            "componentType" : 5126,
+            "count" : 2215,
+            "type" : "VEC2"
+        },
+        {
+            "bufferView" : 23,
+            "componentType" : 5123,
+            "count" : 8580,
+            "type" : "SCALAR"
         }
     ],
     "bufferViews" : [
         {
             "buffer" : 0,
-            "byteLength" : 447264,
+            "byteLength" : 396576,
             "byteOffset" : 0
         },
         {
             "buffer" : 0,
-            "byteLength" : 447264,
-            "byteOffset" : 447264
+            "byteLength" : 396576,
+            "byteOffset" : 396576
         },
         {
             "buffer" : 0,
-            "byteLength" : 298176,
-            "byteOffset" : 894528
+            "byteLength" : 264384,
+            "byteOffset" : 793152
         },
         {
             "buffer" : 0,
-            "byteLength" : 268908,
-            "byteOffset" : 1192704
-        },
-        {
-            "buffer" : 0,
-            "byteLength" : 2412,
-            "byteOffset" : 1461612
+            "byteLength" : 245976,
+            "byteOffset" : 1057536
         },
         {
             "buffer" : 0,
             "byteLength" : 2412,
-            "byteOffset" : 1464024
+            "byteOffset" : 1303512
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 2412,
+            "byteOffset" : 1305924
         },
         {
             "buffer" : 0,
             "byteLength" : 1608,
-            "byteOffset" : 1466436
+            "byteOffset" : 1308336
         },
         {
             "buffer" : 0,
             "byteLength" : 2280,
-            "byteOffset" : 1468044
+            "byteOffset" : 1309944
         },
         {
             "buffer" : 0,
             "byteLength" : 16224,
-            "byteOffset" : 1470324
+            "byteOffset" : 1312224
         },
         {
             "buffer" : 0,
             "byteLength" : 16224,
-            "byteOffset" : 1486548
+            "byteOffset" : 1328448
         },
         {
             "buffer" : 0,
             "byteLength" : 10816,
-            "byteOffset" : 1502772
+            "byteOffset" : 1344672
         },
         {
             "buffer" : 0,
             "byteLength" : 11004,
-            "byteOffset" : 1513588
+            "byteOffset" : 1355488
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 7404,
+            "byteOffset" : 1366492
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 7404,
+            "byteOffset" : 1373896
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 4936,
+            "byteOffset" : 1381300
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 4572,
+            "byteOffset" : 1386236
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 1752,
+            "byteOffset" : 1390808
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 1752,
+            "byteOffset" : 1392560
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 1168,
+            "byteOffset" : 1394312
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 1200,
+            "byteOffset" : 1395480
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 26580,
+            "byteOffset" : 1396680
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 26580,
+            "byteOffset" : 1423260
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 17720,
+            "byteOffset" : 1449840
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 17160,
+            "byteOffset" : 1467560
         }
     ],
     "samplers" : [
@@ -309,7 +568,7 @@
     ],
     "buffers" : [
         {
-            "byteLength" : 1524592,
+            "byteLength" : 1484720,
             "uri" : "DroidTextured.bin"
         }
     ]
