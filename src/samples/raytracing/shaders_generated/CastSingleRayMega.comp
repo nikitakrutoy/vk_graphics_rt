@@ -279,7 +279,12 @@ vec4 shade_pbr(CRT_Hit hit, vec4 light) {
   const vec2 uv1 = vertices[vertexOffset + i1].texCoordAndTangent.xy;
   const vec2 uv2 = vertices[vertexOffset + i2].texCoordAndTangent.xy;
 
+  const vec3 tan0 = DecodeNormal(floatBitsToInt(vertices[vertexOffset + i0].texCoordAndTangent.z));
+  const vec3 tan1 = DecodeNormal(floatBitsToInt(vertices[vertexOffset + i1].texCoordAndTangent.z));
+  const vec3 tan2 = DecodeNormal(floatBitsToInt(vertices[vertexOffset + i2].texCoordAndTangent.z));
+
   vec2 uv =  hit.bars.x * uv0 + hit.bars.y * uv1 + hit.bars.z * uv2;
+  vec3 T =  hit.bars.x * tan0 + hit.bars.y * tan1 + hit.bars.z * tan2;
 
   // base
   vec4 base;
@@ -306,9 +311,25 @@ vec4 shade_pbr(CRT_Hit hit, vec4 light) {
     roughness = mat.roughness;
   }
 
-  vec3 V =  -normalize(p.xyz - ubo.m_camPos.xyz);
   vec3 N = n;
-  vec3 L = normalize(light.xyz);
+  if (mat.normalTexId >= 0) {
+    mat3 M = mat3(transpose(inverse(instance_mats[hit.instId])));
+    vec3 B = cross(N, T);
+    N = normalize(M * N);
+    T = normalize(M * T);
+    B = normalize(M * B);
+    mat3 TBN = mat3(T, B, N);
+
+    N = normalize(texture(sampler2D(textures[mat.normalTexId], samp), uv).xyz);
+
+    N = normalize(TBN * N);
+  }
+  else {
+    N = n;
+  }
+
+  vec3 V =  -normalize(p.xyz - ubo.m_camPos.xyz);
+  vec3 L = light.xyz;
   vec3 H = normalize(L + V);
 
   float NdL = max(0.0, dot(N, L));
