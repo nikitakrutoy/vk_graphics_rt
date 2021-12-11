@@ -376,9 +376,10 @@ void SceneManager::LoadMaterialDataOnGPU()
     //   m_textureInfos.push_back(getImageInfo(missingTextureImgPath));
     // }
 
-    vk_utils::allocateImgsBindCreateView(m_device, m_physDevice, m_textures);
-    if(!m_textures.empty())
+    if(!m_textures.empty()) {
+      vk_utils::allocateImgsBindCreateView(m_device, m_physDevice, m_textures);
       m_texturesMemAlloc = m_textures[0].mem;
+    }
 
     VkSampler common_sampler = vk_utils::createSampler(m_device, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_REPEAT,
       VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK);

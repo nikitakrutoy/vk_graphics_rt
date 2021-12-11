@@ -42,7 +42,9 @@ int main()
   initVulkanGLFW(app, window, VULKAN_DEVICE_ID);
 
   // app->LoadScene("../resources/scenes/02_casual_effects/breakfast_room/statex_00001.xml");
-  app->LoadScene("../resources/scenes/buggy/DroidTextured.gltf");
+  // app->LoadScene("../resources/scenes/buggy/DroidTextured.gltf");
+  app->LoadScene("../resources/scenes/buggy/Buggy.gltf");
+  
 
   bool showGUI = true;
   mainLoop(app, window, showGUI);
